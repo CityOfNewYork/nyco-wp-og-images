@@ -5,6 +5,8 @@ namespace NYCO;
 class OgImage {
   public $header = 'Content-Type: image/png';
 
+  public $quality = 9;
+
   public $w = 1200;
 
   public $h = 628;
@@ -21,13 +23,17 @@ class OgImage {
 
   public $fontBold = __DIR__ . '/assets/PublicSans-Bold.ttf';
 
-  public $fontSizeTitle = 34;
+  public $fontSizeLarge = 38;
 
-  public $fontSizeSubtitle = 16;
+  public $lineHeightLarge = 1.4;
 
-  public $wrapTitle = 28;
+  public $wrapLarge = 26;
 
-  public $wrapSubtitle = 58;
+  public $fontSizeSmall = 18;
+
+  public $lineHeightSmall = 1.6;
+
+  public $wrapSmall = 50;
 
   public $preText = '';
 
@@ -90,45 +96,48 @@ class OgImage {
 
     $color = imagecolorallocate($this->text, $this->color[0], $this->color[1], $this->color[2]);
 
+    $this->textColor = $color;
+
     /**
      * Pre-title Text
      */
 
-    $this->preText = wordwrap($this->preText, $this->wrapSubtitle, "\n");
+    $this->preText = wordwrap($this->preText, $this->wrapSmall, "\n");
 
-    $boundsPreText = imagettfbbox($this->fontSizeSubtitle, 0, $this->fontBold, $this->preText);
+    $preTextHeight = $this->bounds($this->fontSizeSmall, $this->fontBold, $this->preText)['height'];
 
-    $preTextHeight = $boundsPreText[3] - $boundsPreText[5];
+    $preTextLineHeight = $this->fontSizeSmall * $this->lineHeightSmall;
 
     /**
      * Title
      */
 
-    $this->title = wordwrap($this->title, $this->wrapTitle, "\n");
 
-    $boundsTitle = imagettfbbox($this->fontSizeTitle, 0, $this->fontBold, $this->title);
+    $this->titleImg = $this->blockText($this->fontSizeLarge, $this->fontBold, $this->lineHeightLarge, $this->wrapLarge, $this->title);
 
-    $titleHeight = $boundsTitle[3] - $boundsTitle[5];
+    $titleHeight = ($this->title) ? $this->titleImg['height'] : 0;
+
+    $titleLineHeight = ($this->title) ? $this->titleImg['lineHeight'] : 0;
 
     /**
      * Subtitle (bold)
      */
 
-    $this->subtitleBold = wordwrap($this->subtitleBold, $this->wrapSubtitle, "\n");
+    $this->subtitleBoldImg = $this->blockText($this->fontSizeSmall, $this->fontBold, $this->lineHeightSmall, $this->wrapSmall, $this->subtitleBold);
 
-    $boundsSubtitleBold = imagettfbbox($this->fontSizeSubtitle, 0, $this->fontBold, $this->subtitleBold);
+    $subtitleBoldHeight = ($this->subtitleBold) ? $this->subtitleBoldImg['height'] : 0;
 
-    $subtitleBoldHeight = $boundsSubtitleBold[3] - $boundsSubtitleBold[5];
+    $subtitleBoldLineHeight = ($this->subtitleBold) ? $this->subtitleBoldImg['lineHeight'] : 0;
 
     /**
      * Subtitle (regular)
      */
 
-    $this->subtitle = wordwrap($this->subtitle, $this->wrapSubtitle, "\n");
+    $this->subtitleImg = $this->blockText($this->fontSizeSmall, $this->fontRegular, $this->lineHeightSmall, $this->wrapSmall, $this->subtitle);
 
-    $boundsSubtitle = imagettfbbox($this->fontSizeSubtitle, 0, $this->fontRegular, $this->subtitle);
+    $subtitleHeight = ($this->subtitle) ? $this->subtitleImg['height'] : 0;
 
-    $subtitleHeight = $boundsSubtitle[3] - $boundsSubtitle[5];
+    $subtitleLineHeight = ($this->subtitle) ? $this->subtitleImg['lineHeight'] : 0;
 
     /**
      * Alignment
@@ -136,20 +145,22 @@ class OgImage {
 
     $margin = $this->grid * $this->margin;
 
-    $startTop = $margin + $this->fontSizeTitle + ($this->grid * 2);
+    $marginBottom = $this->grid * 3;
 
-    $startMiddle = ($this->h / 2) - (($titleHeight + $subtitleBoldHeight + $subtitleHeight) / 2);
+    $startTop = $margin;
 
-    $startBottom = $this->h - $margin - $titleHeight - $subtitleBoldHeight - $subtitleHeight ;
+    $startMiddle = ($this->h / 2) - (($titleHeight + $subtitleBoldHeight + $subtitleHeight + $marginBottom) / 2);
+
+    $startBottom = $this->h - $margin - $titleHeight - $subtitleBoldHeight - $subtitleHeight;
 
     /**
      * Add Text to Image
      */
 
     if ('top' != $this->verticalAlign) {
-      $startPreText = $margin + $this->fontSizeSubtitle;
+      $startPreText = $margin + $preTextLineHeight;
 
-      imagettftext($this->image, $this->fontSizeSubtitle, 0, $margin, $startPreText, $color, $this->fontBold, $this->preText);
+      imagettftext($this->image, $this->fontSizeSmall, 0, $margin, $startPreText, $color, $this->fontBold, $this->preText);
     }
 
     if ('top' === $this->verticalAlign) {
@@ -164,19 +175,81 @@ class OgImage {
       $titleY = $startBottom;
     }
 
-    imagettftext($this->image, $this->fontSizeTitle, 0, $margin, $titleY, $color, $this->fontBold, $this->title);
+    imagecopy($this->image, $this->titleImg['image'], $margin, $titleY, 0, 0, $this->w, $this->h);
 
-    $subtitleBoldY = $titleY + $titleHeight + $this->grid; // add previous y position to the previous height with a little spacing
+    $subtitleBoldY = $titleY + $titleHeight + $marginBottom;
 
-    imagettftext($this->image, $this->fontSizeSubtitle, 0, $margin, $subtitleBoldY, $color, $this->fontBold, $this->subtitleBold);
+    imagecopy($this->image, $this->subtitleBoldImg['image'], $margin, $subtitleBoldY, 0, 0, $this->w, $this->h);
 
-    $subtitleY = $subtitleBoldY + $subtitleBoldHeight + $this->grid * 1.5;
+    $subtitleY = $subtitleBoldY + $subtitleBoldHeight;
 
-    imagettftext($this->image, $this->fontSizeSubtitle, 0, $margin, $subtitleY, $color, $this->fontRegular, $this->subtitle);
+    imagecopy($this->image, $this->subtitleImg['image'], $margin, $subtitleY, 0, 0, $this->w, $this->h);
 
     // Return the instance containing the image
 
     return $this;
+  }
+
+  /**
+   * Gets the width and height of a text box set in imagettfbbox.
+   *
+   * @param   Number  $fontSize  Size of the font for the text
+   * @param   String  $font      Path to font file to use for the text
+   * @param   String  $text      The text to use for the block
+   *
+   * @return  Array              The width and height of the text
+   */
+  public function bounds($fontsize, $font, $text) {
+    $dimensions = imagettfbbox($fontsize, 0, $font, $text);
+
+    $ascent = abs($dimensions[7]);
+    $descent = abs($dimensions[1]);
+
+    $width = abs($dimensions[0]) + abs($dimensions[2]);
+    $height = $ascent + $descent;
+
+    return array(
+      'width' => $width,
+      'height' => $height
+    );
+  }
+
+  /**
+   * Create an image text block by breaking up lines of text and placing them
+   * in an image using a line height calculation. It creates a more consistent
+   * line height for wrapped text than standard word wrapping and imagettftext
+   * alone.
+   *
+   * @param   Number  $fontSize           Size of the font for the text
+   * @param   String  $font               Path to font file to use for the text
+   * @param   Number  $lineHeight         Line height in decimal format
+   * @param   Number  $wrap               The character to wrap the text
+   * @param   String  $text               The text to use for the block
+   *
+   * @return  Array                       Containing the image, image height, and calculated line height of the text
+   */
+  public function blockText($fontSize, $font, $lineHeight, $wrap, $text) {
+    $lines = explode("\n", wordwrap($text, $wrap, "\n"));
+
+    $lineHeight = $fontSize * $lineHeight;
+
+    $image = imagecreatetruecolor($this->w, $this->h);
+
+    imagesavealpha($image, true);
+
+    $transparent = imagecolorallocatealpha($image, 0, 0, 0, 127);
+
+    imagefill($image, 0, 0, $transparent);
+
+    foreach ($lines as $index => $line) {
+      imagettftext($image, $fontSize, 0, 0, $lineHeight * ($index + 1) - $this->grid, $this->textColor, $font, $line);
+    }
+
+    return array(
+      'image' => $image,
+      'height' => $lineHeight * count($lines),
+      'lineHeight' => $lineHeight
+    );
   }
 
   /**
@@ -188,6 +261,9 @@ class OgImage {
     imagedestroy($this->background);
     imagedestroy($this->logo);
     imagedestroy($this->text);
+    imagedestroy($this->titleImg['image']);
+    imagedestroy($this->subtitleBoldImg['image']);
+    imagedestroy($this->subtitleImg['image']);
     imagedestroy($this->image);
 
     return $this;
